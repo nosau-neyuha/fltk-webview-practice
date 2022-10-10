@@ -1,0 +1,20 @@
+[package]
+name = "fltk_webview_simple_player"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+fltk = "1"
+fltk-webview = "0.2"
+gjson = "0.8"
+path-absolutize = "3"
+reqwest = { version = "0.11", features = ["json"] }
+rust-embed = "6.4.0"
+scraper = "0.13.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+serde_json = "1.0"
+tokio = { version = "1.20.0", features = ["full"] }
+urlencoding = "2.1.2"

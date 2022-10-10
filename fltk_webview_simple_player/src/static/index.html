@@ -1,0 +1,524 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="script-src 'unsafe-inline' 'unsafe-eval' https://www.youtube.com;">
+  <title>Player</title>
+  <style type="text/css">
+html {
+  scroll-behavior: smooth;
+}
+body {
+  display: -ms-flexbox;
+  display: flex;
+  flex-direction: column !important;
+  -ms-flex-align: center;
+  align-items: center;
+  background-color: #f5f5f5;
+  overflow-y: hidden;
+}
+#player-container {
+  margin: 0 auto;
+  width: 100%;
+  background-color: #000;
+}
+#player-content {
+  padding-top: 56.25%;
+  position: relative;
+  width: 100%;
+}
+#player-content iframe {
+  height: 100% !important;
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 100% !important;
+}
+#sub-container {
+  margin: 0 0 0 30px;
+  width: calc(100% - 30px);
+}
+#message-container {
+  display: -ms-flexbox;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+#message {
+  max-height: calc(100vh - 55vw - 110px);
+  width: calc(100% - 70px);
+  overflow-y: scroll;
+  -webkit-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+  flex-wrap: wrap;
+  display: flex;
+}
+#message > div {
+  position: relative;
+  width: 175px;
+  height: 105px;
+  margin: 5px;
+  cursor: pointer;
+}
+#message > div > img {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 160px;
+  height: 90px;
+  cursor: pointer;
+}
+#hide-button {
+  cursor: pointer;
+  padding: 0 11px 0 15px;
+  border: solid;
+  border-radius: 3px;
+  border-color: #999;
+  border-width: thin;
+  background-color: #DDD;
+  font-size: 1.2em;
+  transform: rotate(0deg);
+}
+#play-button,
+#repeat-button {
+  margin: 0 0.6em;
+  cursor: pointer;
+  padding: 3px 20px 0;
+  border: solid;
+  border-radius: 3px;
+  border-color: #999;
+  border-width: thin;
+  background-color: #DDD;
+  font-size: 1.3em;
+  color: #333;
+}
+#url-input {
+  width: calc(100% - 7em);
+  margin: 0 1em;
+}
+#form-container {
+  margin: 20px auto;
+  width: 70vw;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+.remove-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30px;
+  height: 30px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 900;
+  color: #FFF;
+  cursor: pointer;
+  border-radius: 50%;
+  background-color: #F07;
+}
+.prev-button {
+  position: absolute;
+  top: 45px;
+  left: -5px;
+  width: 20px;
+  height: 30px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 900;
+  color: #FFF;
+  cursor: pointer;
+  border-radius: 10%;
+  background-color: #07F;
+}
+.next-button {
+  position: absolute;
+  top: 45px;
+  right: 10px;
+  width: 20px;
+  height: 30px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 900;
+  color: #FFF;
+  cursor: pointer;
+  border-radius: 10%;
+  background-color: #07F;
+}
+.video-title {
+  position: absolute;
+  top: 15px;
+  left: 0;
+  width: 160px;
+  height: 90px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 300;
+  color: #FFF;
+  background-color: rgba(0,0,0,0.5);
+  overflow-wrap: break-word;
+}
+.video-length {
+  position: absolute;
+  bottom: 0;
+  right: 15px;
+  height: 12px;
+  text-align: right;
+  font-size: 11px;
+  font-weight: 300;
+  color: #FFF;
+  background-color: #111;
+}
+  </style>
+</head>
+<body>
+  <div id="player-container">
+    <div id="player-content" >
+      <div id="ytplayer"></div>
+    </div>
+  </div>
+  <div id="form-container">
+    <input id="url-input" type="text" class="form-control" autocomplete="on">
+    <div id="play-button" class="btn btn-primary" onclick="Search();">&#9654;</div>
+    <div id="repeat-button" class="btn btn-primary" onclick="switchRepeatMode();">&#10227;</div>
+  </div>
+  <div id="sub-container">
+    <div id="message-container">
+      <div id="message"></div>
+      <div>
+        <div id="hide-button" class="btn btn-primary" onclick="hideOrShowController();">&#9206;</div>
+      </div>
+    </div>
+  </div>
+  <script>
+  var player;
+  var videoDataList = [];
+  var repeatMode = false;
+  var youTubePlayerAPIReady = false;
+  var tag = document.createElement('script');
+  tag.src = "https://www.youtube.com/iframe_api";
+  var firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+  var onYouTubePlayerAPIReady = function () {
+    youTubePlayerAPIReady = true;
+  };
+  var removeVideoData = function(videoId) {
+    videoDataList = videoDataList.reduce(function(a, c){
+      if(c.id != videoId) a.push(c);
+      return a;
+    }, []);
+  };
+  var moveToFirstVideoData = function(videoData) {
+    videoDataList = videoDataList.reduce(function(a, c){
+      if(c.id != videoId) a.push(c);
+      return a;
+    }, [videoData]);
+  };
+  var rotateVideoDataList = function() {
+    var firstVideoData = videoDataList.shift();
+    videoDataList.push(firstVideoData );
+  };
+  var currentVideoId = "";
+  var switchVideoId1 = "";
+  var switchVideoId2 = "";
+  var switchVideoData = function(arr, val1, val2) {
+    var res = arr;
+    var forward = true;
+    if (arr.length > 1) {
+      var v1data, v2data;
+      arr.forEach(v => {
+        if(v.id == val1) {
+          v1data = v;
+        } else if(v.id == val2) {
+          v2data = v;
+        }
+      });
+      res = arr.reduce(function(a, c){
+        if(c.id == val1) {
+          forward = false;
+        } else if(c.id == val2) {
+          if(forward) {
+            a.push(v1data);
+            a.push(v2data);
+          } else {
+            a.push(v2data);
+            a.push(v1data);
+          }
+        } else {
+          a.push(c);
+        }
+        return a;
+      }, []);
+    }
+    return res;
+  };
+  var switchPrevArray = function(arr, val) {
+    var res = arr;
+    if (arr.length > 1 && arr[0].id != val) {
+      res = arr.reduce(function(a, c){
+        if(c.id != val) {
+          a.push(c);
+        } else {
+          b = a.pop();
+          a.push(c);
+          a.push(b);
+        }
+        return a;
+      }, []);
+    }
+    return res;
+  };
+  var switchPrevVideoId = function(videoId) {
+    videoDataList = switchPrevArray(videoDataList, videoId);
+  };
+  var switchNextVideoId = function(videoId) {
+    videoDataList = switchPrevArray(videoDataList.reverse(), videoId).reverse();
+  };
+  var refreshMessage = function() {
+    SaveData();
+    clearMessage();
+    appendMessage(videoDataList.slice(1));
+  };
+  var clearMessage = function() {
+    document.getElementById("message").innerHTML = '';
+  };
+  var appendMessage = function(dataList) {
+    var messageElement = document.getElementById("message");
+    dataList.forEach(v => {
+      var div = document.createElement("div");
+      var img = document.createElement("img");
+      img.src = "https://i.ytimg.com/vi/".concat(v.id, "/default.jpg");
+      div.append(img);
+      div.id = v.id;
+      div.dataset.title = v.title;
+      div.dataset.length = v.length;
+      div.setAttribute("draggable", true);
+      div.onclick = function() {
+        moveToFirstVideoData(v);
+        refreshPlayer(v.id);
+      };
+      div.onmouseover = function() {
+        mouseOver(v.id);
+      };
+      div.onmouseleave = function() {
+        mouseLeave(v.id);
+      };
+      div.ondragstart = function() {
+        dragStart(v.id);
+      };
+      div.ondragenter = function() {
+        dragEnter(v.id);
+      };
+      div.ondragend = function() {
+        dragEnd();
+      };
+      messageElement.append(div);
+    });
+  };
+  var hideOrShowController = function() {
+    var messageElm = document.getElementById("message");
+    var hideButton = document.getElementById("hide-button");
+    var formContainer = document.getElementById("form-container");
+    if (formContainer.style.display.toString() !== 'none') {
+      hideButton.style.transform = 'rotate(180deg)';
+      messageElm.style.maxHeight = 'calc(100vh - 55vw - 50px)';
+      formContainer.style.display = 'none';
+    } else {
+      hideButton.style.transform = 'rotate(0deg)';
+      messageElm.style.maxHeight = 'calc(100vh - 55vw - 110px)';
+      formContainer.style.display = 'flex';
+    }
+  };
+  var switchRepeatMode = function() {
+    var repeatButton = document.getElementById("repeat-button");
+    if (repeatMode) {
+      repeatButton.style.color = '#333';
+      repeatButton.style.backgroundColor = '#DDD';
+    } else {
+      repeatButton.style.color = '#DDD';
+      repeatButton.style.backgroundColor = '#777';
+    }
+    repeatMode = !repeatMode;
+  };
+  var initPlayer = function(videoId) {
+    currentVideoId = videoId;
+    player = new YT.Player('ytplayer', {
+      height: '360',
+      width: '640',
+      videoId: videoId,
+      events: {
+        'onReady': onPlayerReady,
+        'onStateChange': onPlayerStateChange,
+        'onError': onPlayerError,
+      }
+    });
+  };
+  var mouseOver = function(videoId) {
+    var element = document.getElementById(videoId);
+    if(element.getElementsByTagName('div').length > 0) {
+      return;
+    }
+
+    var divTitle = document.createElement("div");
+    divTitle.className = "video-title";
+    divTitle.innerHTML = element.dataset.title;
+    element.append(divTitle);
+
+    var divLength = document.createElement("div");
+    divLength.className = "video-length";
+    divLength.innerHTML = element.dataset.length;
+    element.append(divLength);
+
+    if (videoDataList.length > 2 && videoDataList[1].id != videoId) {
+      var div1 = document.createElement("div");
+      div1.className = "prev-button";
+      div1.innerHTML = '&lang;';
+      div1.onclick = function(event) {
+        event.stopPropagation();
+        switchPrevVideoId(videoId);
+        refreshMessage();
+      }
+      element.append(div1);
+    }
+
+    if (videoDataList.length > 2 && videoDataList[videoDataList.length - 1].id != videoId) {
+      var div2 = document.createElement("div");
+      div2.className = "next-button";
+      div2.innerHTML = '&rang;';
+      div2.onclick = function(event) {
+        event.stopPropagation();
+        switchNextVideoId(videoId);
+        refreshMessage();
+      }
+      element.append(div2);
+    }
+
+    var div3 = document.createElement("div");
+    div3.className = "remove-button";
+    div3.innerHTML = '&times;';
+    div3.onclick = function(event) {
+      event.stopPropagation();
+      removeVideoData(videoId);
+      refreshMessage();
+    }
+    element.append(div3);
+  };
+  var mouseLeave = function(videoId) {
+    var element = document.getElementById(videoId);
+    if(!element || !element.getElementsByTagName('div') || element.getElementsByTagName('div').length < 1) {
+      return;
+    }
+    Array.from(document.getElementById(videoId).getElementsByTagName('div')).forEach(v => v.remove());
+  };
+  var dragStart = function(videoId) {
+    switchVideoId1 = videoId;
+  };
+  var dragEnter = function(videoId) {
+    switchVideoId2 = videoId;
+  };
+  var dragEnd = function() {
+    if (switchVideoId1.length > 0 && switchVideoId2.length > 0 && switchVideoId1 != switchVideoId2) {
+      videoDataList = switchVideoData(videoDataList, switchVideoId1, switchVideoId2);
+      switchVideoId1 = "";
+      switchVideoId2 = "";
+      refreshMessage();
+    }
+  };
+  var checkAndRefreshPlayer = function() {
+    if (videoDataList.length > 0) {
+      refreshPlayer(videoDataList[0].id);
+    } else {
+      SaveData();
+    }
+  };
+  var refreshPlayer = function(nextVideoId) {
+    if (nextVideoId.length > 0) {
+      var contentElement = document.getElementById("player-content");
+      contentElement.innerHTML = '';
+      var divElement = document.createElement("div");
+      divElement.id = 'ytplayer';
+      contentElement.append(divElement);
+      player = null;
+      initPlayer(nextVideoId);
+      refreshMessage();
+    }
+  }
+  var forceNextVideo = function() {
+    if (currentVideoId.length > 0) {
+      removeVideoData(currentVideoId);
+    }
+    checkAndRefreshPlayer();
+  }
+  var onPlayerReady = function(event) {
+    event.target.playVideo();
+    setTimeout(async () => {
+      var playerState = player.getPlayerState();
+      if (playerState === -1) {
+        forceNextVideo();
+      }
+    }, 10000);
+  }
+  var onPlayerStateChange = function(event) {
+    var ytStatus = event.data;
+    if (ytStatus == YT.PlayerState.ENDED) {
+      if (currentVideoId.length > 0) {
+        if (repeatMode) {
+          rotateVideoDataList();
+        } else {
+	  videoDataList = videoDataList.slice(1);
+        }
+      }
+      checkAndRefreshPlayer();
+    }
+  }
+  var onPlayerError = function(event) {
+    console.log(event.data);
+    forceNextVideo();
+  }
+  var waitForAPIReady = function(videoId) {
+    if (youTubePlayerAPIReady) {
+      refreshPlayer(videoId);
+    } else {
+      setTimeout(function() {
+        waitForAPIReady(videoId);
+      }, 1000);
+    }
+  };
+  var Search = function() {
+    var urlInput = document.getElementById("url-input");
+    searchItemList(urlInput.value);
+    urlInput.value = "";
+  };
+  var OnSearchData = function(jsonString) {
+    var isFirst = videoDataList.length == 0;
+    Array.prototype.push.apply(videoDataList, JSON.parse(jsonString));
+    if (videoDataList.length > 0) {
+      if (youTubePlayerAPIReady && isFirst) {
+        refreshPlayer(videoDataList[0].id);
+      } else {
+        refreshMessage();
+      }
+    }
+  };
+  var SaveData = function() {
+    (async () => {
+      setItemList(JSON.stringify(videoDataList));
+    })();
+  };
+  var OnLoadData = function(jsonString) {
+    videoDataList = [];
+    if (!!jsonString && jsonString.length > 0) {
+      videoDataList = JSON.parse(jsonString);
+    }
+    if (videoDataList.length > 0) {
+      waitForAPIReady(videoDataList[0].id);
+    }
+  };
+  (async () => {
+    getItemList();
+  })();
+  </script>
+</body>
+</html>
